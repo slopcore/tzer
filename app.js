@@ -1,7 +1,7 @@
 (() => {
   const HALF = 12 * 3600e3;
   const STEP = 15 * 60e3;
-  const STORE = "skyclock.zones";
+  const STORE = "tzer.zones";
   const RISE_SET_ELEV = -0.833;
   const myZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const COORDS = window.ZONE_COORDS || {};
@@ -140,11 +140,9 @@
   }
 
   let zones;
-  try { zones = JSON.parse(localStorage.getItem(STORE) || "null"); } catch { zones = null; }
-  if (!Array.isArray(zones) || !zones.every(z => typeof z === "string" && validZone(z))) {
-    zones = ["Europe/London", "America/New_York", "America/Los_Angeles", "Asia/Kolkata", "Asia/Tokyo", "Australia/Sydney", "Atlantic/Reykjavik"];
-  }
-  zones = [myZone, ...zones.filter(z => z !== myZone)];
+  try { zones = JSON.parse(localStorage.getItem(STORE) || "[]"); } catch { zones = []; }
+  if (!Array.isArray(zones)) zones = [];
+  zones = [myZone, ...new Set(zones.filter(z => typeof z === "string" && z !== myZone && validZone(z)))];
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify(zones.slice(1))); } catch {} };
 
 
@@ -210,7 +208,8 @@
   function render() {
     const now = Date.now();
     const myOff = offsetMin(myZone, now);
-    stack.innerHTML = zones.map((z, i) => rowHTML(z, i === 0, now, now - HALF, now + HALF, myOff)).join("");
+    stack.innerHTML = zones.map((z, i) => rowHTML(z, i === 0, now, now - HALF, now + HALF, myOff)).join("")
+      + (zones.length === 1 ? '<p class="hint">Search above to add places to compare, like a city or a country such as New Zealand.</p>' : "");
     applyHover();
   }
 
