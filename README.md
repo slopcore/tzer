@@ -6,7 +6,7 @@ Stacked 24-hour day/night bars for multiple time zones, centred on your current 
 - Local times come from the browser's time zone database, so DST and half-hour offsets are handled, including a DST change inside the 24-hour window.
 - Hover or drag across the bars to read every zone's time at that moment.
 
-Plain static HTML/JS, no build step. Served by GitHub Pages from `main`.
+Plain static HTML/JS, no build step. Pushing to `main` deploys via `.github/workflows/pages.yml`, which stamps the commit SHA onto the script URLs to bust browser caches.
 
 Zone coordinates in `zones.js` are generated from tzdata's `zone.tab`:
 
