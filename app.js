@@ -149,8 +149,8 @@
   const stack = document.getElementById("stack");
   let hoverFrac = null;
 
-  function rowHTML(zone, isMe, now, start, end, myOff) {
-    const span = end - start;
+  function barParts(zone, now, myOff) {
+    const start = now - HALF, end = now + HALF, span = end - start;
     const pct = t => ((t - start) / span * 100).toFixed(3) + "%";
     const samples = [start];
     for (let t = Math.ceil(start / STEP) * STEP; t < end; t += STEP) if (t > start) samples.push(t);
@@ -173,7 +173,6 @@
       }
     }
 
-    const coords = coordsFor(zone);
     const sun = sunEvents(zone, samples);
     let sunText = "clock-based colours (no location)";
     if (sun) {
@@ -182,43 +181,58 @@
       else sunText = sun.events.map(e => `${e.rising ? "↑" : "↓"} ${hhmm(local(zone, e.t))}`).join("  ");
     }
 
-    const off = offsetMin(zone, now);
-    const nowLocal = local(zone, now);
+    const isMe = zone === zones[0];
+    const extra = `<span>${abbr(zone, now)}</span>` +
+      (isMe ? "" : `<span>${relLabel(offsetMin(zone, now) - myOff)}</span>`) +
+      (isDST(zone, now) ? '<span class="dst" title="Daylight saving time is in effect">DST</span>' : "");
+    return { background: `linear-gradient(90deg,${grad.join(",")})`, ticks, sunText, extra };
+  }
+
+  function rowShell(zone, isMe) {
+    const coords = coordsFor(zone);
     return `<div class="row${isMe ? " me" : ""}" data-zone="${zone}">
       <div class="meta">
         <div class="top">
           <span class="city" title="${zone}${coords ? " · " + fmtCoord(coords) : ""}">${cityName(zone)}</span>
           ${isMe ? '<span class="you">You</span>' : `<button class="rm" type="button" data-rm="${zone}" aria-label="Remove ${cityName(zone)}">×</button>`}
         </div>
-        <span class="time" data-time>${hhmm(nowLocal)}</span>
-        <span class="info">
-          <span data-day>${dayLabel(nowLocal)}</span>
-          <span>${abbr(zone, now)}</span>
-          ${isMe ? "" : `<span>${relLabel(off - myOff)}</span>`}
-          ${isDST(zone, now) ? '<span class="dst" title="Daylight saving time is in effect">DST</span>' : ""}
-        </span>
-        <span class="sun" title="Sunrise (↑) and sunset (↓) in this 24-hour window, local time">${sunText}</span>
+        <span class="time"><span data-hm></span><span class="sec" data-sec></span></span>
+        <span class="info"><span data-day></span><span class="info-extra" data-extra></span></span>
+        <span class="sun" data-sun title="Sunrise (↑) and sunset (↓) in this 24-hour window, local time"></span>
       </div>
-      <div class="bar" style="background:linear-gradient(90deg,${grad.join(",")})">
-        ${ticks}<div class="nowline"></div><div class="hoverline" hidden></div>
-      </div>
+      <div class="bar"><div class="ticks" data-ticks></div><div class="nowline"></div><div class="hoverline" hidden></div></div>
     </div>`;
   }
 
+  // Rebuild the rows only when the list changes; otherwise update them in place so clicks aren't lost mid-tick.
   function render() {
-    const now = Date.now();
-    const myOff = offsetMin(myZone, now);
-    stack.innerHTML = zones.map((z, i) => rowHTML(z, i === 0, now, now - HALF, now + HALF, myOff)).join("")
+    stack.innerHTML = zones.map((z, i) => rowShell(z, i === 0)).join("")
       + (zones.length === 1 ? '<p class="hint">Search above to add places to compare, like a city or a country such as New Zealand.</p>' : "");
-    applyHover();
+    refreshBars();
   }
 
-  function applyHover() {
+  let lastBarMinute = null;
+  function refreshBars() {
+    const now = Date.now(), myOff = offsetMin(myZone, now);
+    lastBarMinute = Math.floor(now / 60e3);
+    for (const row of stack.querySelectorAll(".row")) {
+      const p = barParts(row.dataset.zone, now, myOff);
+      const bar = row.querySelector(".bar");
+      bar.style.background = p.background;
+      row.querySelector("[data-ticks]").innerHTML = p.ticks;
+      row.querySelector("[data-sun]").textContent = p.sunText;
+      row.querySelector("[data-extra]").innerHTML = p.extra;
+    }
+    updateClocks();
+  }
+
+  function updateClocks() {
     const now = Date.now();
     const t = hoverFrac == null ? now : now - HALF + hoverFrac * 2 * HALF;
     for (const row of stack.querySelectorAll(".row")) {
       const d = local(row.dataset.zone, t);
-      row.querySelector("[data-time]").textContent = hhmm(d);
+      row.querySelector("[data-hm]").textContent = hhmm(d);
+      row.querySelector("[data-sec]").textContent = hoverFrac == null ? ":" + pad(d.getUTCSeconds()) : "";
       row.querySelector("[data-day]").textContent = dayLabel(d);
       const hl = row.querySelector(".hoverline");
       hl.hidden = hoverFrac == null;
@@ -226,14 +240,23 @@
     }
   }
 
+  let timer = null;
+  function tick() {
+    clearTimeout(timer);
+    if (Math.floor(Date.now() / 60e3) !== lastBarMinute) refreshBars();
+    else updateClocks();
+    timer = setTimeout(tick, 1000 - (Date.now() % 1000) + 5);
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+
   function onPoint(e) {
     const bar = e.target.closest(".bar");
     if (!bar) return;
     const r = bar.getBoundingClientRect();
     hoverFrac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    applyHover();
+    updateClocks();
   }
-  const clearHover = () => { hoverFrac = null; applyHover(); };
+  const clearHover = () => { hoverFrac = null; updateClocks(); };
   stack.addEventListener("pointermove", onPoint);
   stack.addEventListener("pointerdown", onPoint);
   stack.addEventListener("pointerleave", clearHover);
@@ -244,6 +267,28 @@
     if (!z) return;
     zones = zones.filter(x => x !== z);
     save(); render();
+  });
+
+  // ---- Collapsible panel ----
+  const PANEL_STORE = "tzer.panel";
+  const panel = document.getElementById("panel");
+  const panelToggle = document.getElementById("panelToggle");
+  function setCollapsed(collapsed) {
+    panel.classList.toggle("collapsed", collapsed);
+    panelToggle.setAttribute("aria-expanded", String(!collapsed));
+    document.getElementById("panelToggleText").textContent = collapsed ? "Search & key" : "Hide";
+    panelToggle.setAttribute("aria-label", collapsed ? "Show search and key" : "Hide search and key");
+    try { localStorage.setItem(PANEL_STORE, collapsed ? "collapsed" : "open"); } catch {}
+  }
+  let startCollapsed = false;
+  try { startCollapsed = localStorage.getItem(PANEL_STORE) === "collapsed"; } catch {}
+  setCollapsed(startCollapsed);
+  panelToggle.addEventListener("click", () => setCollapsed(!panel.classList.contains("collapsed")));
+  document.addEventListener("keydown", e => {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey || e.target?.closest?.("input, textarea, [contenteditable]")) return;
+    e.preventDefault();
+    setCollapsed(false);
+    document.getElementById("zoneInput").focus();
   });
 
   // ---- Search ----
@@ -366,5 +411,9 @@
   });
 
   render();
-  setInterval(render, 30e3);
+  tick();
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
 })();

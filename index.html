@@ -6,6 +6,15 @@
 <title>tzer</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%23070b1f%22/%3E%3Crect x=%228%22 width=%228%22 height=%2216%22 rx=%223%22 fill=%22%23a8def8%22/%3E%3Crect x=%227%22 width=%222%22 height=%2216%22 fill=%22%23e8672c%22/%3E%3C/svg%3E">
 <meta name="description" content="Stacked 24-hour day/night bars for time zones around the world, centred on your time.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c111c" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="tzer">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -55,7 +64,25 @@
   }
   .wrap { max-width: 1200px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 22px; }
 
-  header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; display: grid; gap: 16px;
+  }
+  .panel-top { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+  .brand { min-width: 0; }
+  .panel-body { display: grid; gap: 14px; }
+  .toggle {
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 6px 12px; font-size: 13px;
+  }
+  .toggle:hover { color: var(--ink); border-color: var(--muted); }
+  .toggle svg { transition: transform 0.15s ease; }
+  .panel.collapsed { padding-block: 10px; gap: 0; }
+  .panel.collapsed .panel-top { align-items: center; }
+  .panel.collapsed h1 { font-size: 18px; }
+  .panel.collapsed .sub, .panel.collapsed .panel-body { display: none; }
+  .panel.collapsed .toggle svg { transform: rotate(180deg); }
+  .legend-note { flex-basis: 100%; }
   h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
   .sub { margin: 4px 0 0; color: var(--muted); }
 
@@ -70,7 +97,7 @@
     background: var(--ink); color: var(--bg);
   }
   button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .combo { position: relative; flex: 1 1 18rem; max-width: 100%; }
+  .combo { position: relative; flex: 1 1 12rem; min-width: 0; }
   .combo input { width: 100%; box-sizing: border-box; }
   #results {
     position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px;
@@ -86,7 +113,8 @@
   .r-city { font-weight: 600; }
   .r-country, .r-off { font-size: 12px; color: var(--muted); }
   .r-time { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-  .err { color: var(--accent); font-size: 13px; width: 100%; margin: 0; min-height: 1em; }
+  .err { color: var(--accent); font-size: 13px; width: 100%; margin: 0; }
+  .err:empty { display: none; }
 
   .stack { display: grid; gap: 14px; position: relative; }
   .row { display: grid; grid-template-columns: 15rem 1fr; gap: 16px; align-items: center; }
@@ -98,6 +126,8 @@
     color: var(--accent);
   }
   .time { font-family: var(--mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .info-extra { display: contents; }
+  .sec { font-size: 0.62em; font-weight: 400; color: var(--muted); }
   .info { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
   .dst {
     font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
@@ -137,10 +167,12 @@
   .hoverline { background: var(--ink); opacity: 0.55; z-index: 1; }
 
   .hint { margin: 0; color: var(--muted); }
-  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; align-items: center; }
+  .legend { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; align-items: center; }
   .sw { display: inline-block; width: 28px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
 
+  @media (prefers-reduced-motion: reduce) { .toggle svg { transition: none; } }
   @media (max-width: 720px) {
+    .panel { padding: 14px 14px; }
     .row { grid-template-columns: 1fr; gap: 6px; }
     .lbl.minor, .tick.minor { display: none; }
     .time { font-size: 18px; }
@@ -149,33 +181,40 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div>
-      <h1>tzer</h1>
-      <p class="sub">24 hours around your current time, shaded by where the sun actually is. Hover or drag across the bars to compare a moment.</p>
-    </div>
-    <form id="addForm" autocomplete="off">
-      <div class="combo">
-        <input id="zoneInput" placeholder="Add a place: city, country or zone" aria-label="Add a place"
-               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="results" spellcheck="false">
-        <ul id="results" role="listbox" hidden></ul>
+  <header class="panel" id="panel">
+    <div class="panel-top">
+      <div class="brand">
+        <h1>tzer</h1>
+        <p class="sub">24 hours around your current time, shaded by where the sun actually is. Hover or drag across the bars to compare a moment.</p>
       </div>
-      <button type="submit">Add</button>
-      <p class="err" id="err"></p>
-    </form>
+      <button type="button" class="toggle" id="panelToggle" aria-expanded="true" aria-controls="panelBody">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10 8 5.5 12.5 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="panelToggleText">Hide</span>
+      </button>
+    </div>
+    <div class="panel-body" id="panelBody">
+      <form id="addForm" autocomplete="off">
+        <div class="combo">
+          <input id="zoneInput" placeholder="Add a place: city, country or zone" aria-label="Add a place"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="results" spellcheck="false">
+          <ul id="results" role="listbox" hidden></ul>
+        </div>
+        <button type="submit">Add</button>
+        <p class="err" id="err"></p>
+      </form>
+      <div class="legend">
+        <span><span class="sw" style="background:#a8def8"></span>Sun up</span>
+        <span><span class="sw" style="background:linear-gradient(90deg,#26387a,#4b73b3,#76bbe5)"></span>Civil twilight</span>
+        <span><span class="sw" style="background:linear-gradient(90deg,#070b1f,#0f1838,#26387a)"></span>Nautical / astronomical twilight</span>
+        <span><span class="sw" style="background:#070b1f"></span>Night</span>
+        <span><span class="sw" style="background:#e8672c;width:3px"></span>Now</span>
+        <span><span class="sw" style="background:#fff;box-shadow:inset 0 0 0 1px #999;width:3px"></span>Local midnight</span>
+        <span class="legend-note">Sun position is calculated for each zone's reference city from the tz database. Hover a city name for its coordinates.</span>
+      </div>
+    </div>
   </header>
 
   <div class="stack" id="stack"></div>
-
-  <div class="legend">
-    <span><span class="sw" style="background:#a8def8"></span>Sun up</span>
-    <span><span class="sw" style="background:linear-gradient(90deg,#26387a,#4b73b3,#76bbe5)"></span>Civil twilight</span>
-    <span><span class="sw" style="background:linear-gradient(90deg,#070b1f,#0f1838,#26387a)"></span>Nautical / astronomical twilight</span>
-    <span><span class="sw" style="background:#070b1f"></span>Night</span>
-    <span><span class="sw" style="background:#e8672c;width:3px"></span>Now</span>
-    <span><span class="sw" style="background:#fff;box-shadow:inset 0 0 0 1px #999;width:3px"></span>Local midnight</span>
-    <span>Sun position is calculated for each zone's reference city from the tz database (hover a city name for its coordinates).</span>
-  </div>
 </div>
 
 <script src="zones.js?v=__BUILD__"></script>

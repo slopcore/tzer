@@ -22,11 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Stamp script URLs so browsers never pair new HTML with cached JS
+      - name: Stamp script URLs and the service worker cache with the commit SHA
         run: |
           mkdir _site
-          cp index.html app.js zones.js .nojekyll _site/
-          sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" _site/index.html
+          cp -r index.html app.js zones.js sw.js manifest.webmanifest icons .nojekyll _site/
+          sed -i "s/__BUILD__/${GITHUB_SHA::8}/g" _site/index.html _site/sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
