@@ -164,7 +164,11 @@
     position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; pointer-events: none;
   }
   .nowline { left: 50%; background: var(--accent); z-index: 2; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
-  .hoverline { background: var(--ink); opacity: 0.55; z-index: 1; }
+  .hoverline {
+    z-index: 3; width: 3px; margin-left: -1.5px;
+    background: repeating-linear-gradient(to bottom, #fff 0 5px, #0a1230 5px 9px);
+    box-shadow: 0 0 0 1px rgba(10, 18, 48, 0.55), 0 0 6px rgba(255, 255, 255, 0.35);
+  }
 
   .hint { margin: 0; color: var(--muted); }
   .legend { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; align-items: center; }
