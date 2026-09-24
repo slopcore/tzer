@@ -5,6 +5,7 @@ Stacked 24-hour day/night bars for multiple time zones, centred on your current 
 - Bars are shaded by the sun's real elevation at each zone's reference city (day, civil / nautical / astronomical twilight, night).
 - Local times come from the browser's time zone database, so DST and half-hour offsets are handled, including a DST change inside the 24-hour window.
 - Hover or drag across the bars to read every zone's time at that moment.
+- The address bar always holds the current list (`?z=Europe/London,Pacific/Auckland`), so it can be bookmarked or shared. Opening someone else's link shows their list without replacing your saved one.
 - Installable as a PWA and works offline once loaded (`manifest.webmanifest`, `sw.js`).
 
 Plain static HTML/JS, no build step. Pushing to `main` deploys via `.github/workflows/pages.yml`, which stamps the commit SHA onto the script URLs to bust browser caches.

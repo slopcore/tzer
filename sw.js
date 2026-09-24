@@ -26,7 +26,8 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   const req = event.request;
-  if (req.method !== "GET") return;
+  // Unstamped local builds share one cache name, so skip caching there to always serve fresh files.
+  if (req.method !== "GET" || VERSION.startsWith("__")) return;
   const url = new URL(req.url);
 
   // Pages: network first so a new deploy shows up straight away, cached copy when offline.

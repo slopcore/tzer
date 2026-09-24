@@ -139,12 +139,68 @@
     return { events: out, allUp, allDown: out.length === 0 && !allUp };
   }
 
-  let zones;
-  try { zones = JSON.parse(localStorage.getItem(STORE) || "[]"); } catch { zones = []; }
-  if (!Array.isArray(zones)) zones = [];
-  zones = [myZone, ...new Set(zones.filter(z => typeof z === "string" && z !== myZone && validZone(z)))];
-  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(zones.slice(1))); } catch {} };
+  const cleanList = list => [...new Set(list.filter(z => typeof z === "string" && z !== myZone && validZone(z)))];
+  let savedZones;
+  try { savedZones = JSON.parse(localStorage.getItem(STORE) || "[]"); } catch { savedZones = []; }
+  savedZones = cleanList(Array.isArray(savedZones) ? savedZones : []);
 
+  // A ?z=Zone/One,Zone/Two link shows that list without touching the visitor's saved one.
+  const sharedParam = new URLSearchParams(location.search).get("z");
+  const sharedZones = sharedParam?.trim() ? cleanList(sharedParam.split(",").map(x => x.trim())) : null;
+  let sharedMode = sharedZones != null && sharedZones.join(",") !== savedZones.join(",");
+  let zones = [myZone, ...(sharedMode ? sharedZones : savedZones)];
+
+  function syncURL() {
+    const url = new URL(location.href);
+    url.search = zones.length > 1
+      ? "?z=" + zones.map(z => encodeURIComponent(z).replace(/%2F/g, "/")).join(",")
+      : "";
+    if (url.href !== location.href) history.replaceState(null, "", url);
+  }
+  function save() {
+    if (!sharedMode) {
+      savedZones = zones.slice(1);
+      try { localStorage.setItem(STORE, JSON.stringify(savedZones)); } catch {}
+    }
+    syncURL();
+    updateBanner();
+  }
+
+  const banner = document.getElementById("sharedBanner");
+  function updateBanner() {
+    banner.hidden = !sharedMode;
+  }
+  document.getElementById("keepShared").addEventListener("click", () => {
+    sharedMode = false;
+    save();
+  });
+  document.getElementById("backToMine").addEventListener("click", () => {
+    sharedMode = false;
+    zones = [myZone, ...savedZones];
+    save(); render();
+  });
+
+  const shareBtn = document.getElementById("shareBtn");
+  const shareStatus = document.getElementById("shareStatus");
+  let statusTimer = null;
+  function flash(msg) {
+    shareStatus.textContent = msg;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { shareStatus.textContent = ""; }, 2500);
+  }
+  shareBtn.addEventListener("click", async () => {
+    syncURL();
+    const url = location.href;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ title: "tzer", url }); return; } catch (e) { if (e.name === "AbortError") return; }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      flash("Link copied");
+    } catch {
+      window.prompt("Copy this link", url);
+    }
+  });
 
   const stack = document.getElementById("stack");
   let hoverFrac = null;
@@ -411,6 +467,8 @@
   });
 
   render();
+  syncURL();
+  updateBanner();
   tick();
 
   if ("serviceWorker" in navigator) {

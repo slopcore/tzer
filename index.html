@@ -68,23 +68,36 @@
     background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
     padding: 18px 20px; display: grid; gap: 16px;
   }
-  .panel-top { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-  .brand { min-width: 0; }
+  .panel-top { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: start; }
+  .brand { display: contents; }
+  .brand h1 { grid-column: 1; grid-row: 1; align-self: center; }
+  .panel-actions { grid-column: 2; grid-row: 1; }
+  .sub { grid-column: 1 / -1; grid-row: 2; }
   .panel-body { display: grid; gap: 14px; }
+  .panel-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+  .share-status { font-size: 13px; color: var(--accent); font-weight: 600; }
+  .shared-banner {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+    padding: 12px 16px; border-radius: 12px;
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+  .shared-banner p { margin: 0; }
+  .banner-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .shared-banner .toggle { color: var(--ink); border-color: color-mix(in srgb, var(--ink) 35%, transparent); font-size: inherit; padding: 8px 14px; }
   .toggle {
     flex: none; display: inline-flex; align-items: center; gap: 6px;
     background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 6px 12px; font-size: 13px;
   }
   .toggle:hover { color: var(--ink); border-color: var(--muted); }
-  .toggle svg { transition: transform 0.15s ease; }
+  #panelToggle svg { transition: transform 0.15s ease; }
   .panel.collapsed { padding-block: 10px; gap: 0; }
   .panel.collapsed .panel-top { align-items: center; }
   .panel.collapsed h1 { font-size: 18px; }
   .panel.collapsed .sub, .panel.collapsed .panel-body { display: none; }
-  .panel.collapsed .toggle svg { transform: rotate(180deg); }
+  .panel.collapsed #panelToggle svg { transform: rotate(180deg); }
   .legend-note { flex-basis: 100%; }
   h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
-  .sub { margin: 4px 0 0; color: var(--muted); }
+  .sub { margin: 0; color: var(--muted); }
 
   form { display: flex; gap: 8px; flex-wrap: wrap; width: min(26rem, 100%); }
   input {
@@ -174,7 +187,7 @@
   .legend { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; align-items: center; }
   .sw { display: inline-block; width: 28px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
 
-  @media (prefers-reduced-motion: reduce) { .toggle svg { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { #panelToggle svg { transition: none; } }
   @media (max-width: 720px) {
     .panel { padding: 14px 14px; }
     .row { grid-template-columns: 1fr; gap: 6px; }
@@ -191,10 +204,17 @@
         <h1>tzer</h1>
         <p class="sub">24 hours around your current time, shaded by where the sun actually is. Hover or drag across the bars to compare a moment.</p>
       </div>
-      <button type="button" class="toggle" id="panelToggle" aria-expanded="true" aria-controls="panelBody">
+      <div class="panel-actions">
+        <span class="share-status" id="shareStatus" role="status"></span>
+        <button type="button" class="toggle" id="shareBtn" title="Copy a link to this list. The address bar always holds it, so you can bookmark it too.">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a2.8 2.8 0 0 1 4 4l-1 1M9 11.5l-1 1a2.8 2.8 0 0 1-4-4l1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Share</span>
+        </button>
+        <button type="button" class="toggle" id="panelToggle" aria-expanded="true" aria-controls="panelBody">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 10 8 5.5 12.5 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span id="panelToggleText">Hide</span>
-      </button>
+        </button>
+      </div>
     </div>
     <div class="panel-body" id="panelBody">
       <form id="addForm" autocomplete="off">
@@ -217,6 +237,14 @@
       </div>
     </div>
   </header>
+
+  <div class="shared-banner" id="sharedBanner" role="region" aria-label="Shared list" hidden>
+    <p>You're viewing a shared list. Your own saved list hasn't changed.</p>
+    <div class="banner-actions">
+      <button type="button" id="keepShared">Keep this list</button>
+      <button type="button" class="toggle" id="backToMine">Back to my list</button>
+    </div>
+  </div>
 
   <div class="stack" id="stack"></div>
 </div>
