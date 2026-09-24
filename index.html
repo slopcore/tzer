@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>tzer</title>
+<meta name="description" content="Stacked 24-hour day/night bars for time zones around the world, centred on your time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #eef2f7;
+    --panel: #ffffff;
+    --ink: #142033;
+    --muted: #5b6b82;
+    --line: #d6dde8;
+    --accent: #e8672c;
+    --field: #ffffff;
+    --sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0c111c;
+      --panel: #141b2a;
+      --ink: #e6ecf5;
+      --muted: #8e9bb2;
+      --line: #263049;
+      --accent: #ff8a4c;
+      --field: #0f1522;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c111c;
+    --panel: #141b2a;
+    --ink: #e6ecf5;
+    --muted: #8e9bb2;
+    --line: #263049;
+    --accent: #ff8a4c;
+    --field: #0f1522;
+  }
+
+  html { color-scheme: light; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    padding: 0 16px;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 22px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+  h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input {
+    font: inherit; color: var(--ink); background: var(--field);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; width: 16rem; max-width: 100%;
+  }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    border-radius: 8px; padding: 8px 14px; border: 1px solid transparent;
+    background: var(--ink); color: var(--bg);
+  }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .err { color: var(--accent); font-size: 13px; width: 100%; margin: 0; min-height: 1em; }
+
+  .stack { display: grid; gap: 14px; position: relative; }
+  .row { display: grid; grid-template-columns: 15rem 1fr; gap: 16px; align-items: center; }
+  .meta { display: grid; gap: 2px; min-width: 0; }
+  .meta .top { display: flex; align-items: baseline; gap: 8px; }
+  .city { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .you {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  .time { font-family: var(--mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .info { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .dst {
+    font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 1px 6px; border-radius: 4px; background: #f5c542; color: #3a2a00;
+  }
+  .sun { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: pre; }
+  .rm {
+    margin-left: auto; background: none; color: var(--muted); padding: 0 4px; font-size: 18px; line-height: 1;
+  }
+  .rm:hover { color: var(--accent); }
+
+  .bar {
+    position: relative; height: 46px; border-radius: 6px; overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+    touch-action: pan-y;
+  }
+  .row.me .bar { height: 56px; }
+  .tick {
+    position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.18);
+  }
+  .tick.day { background: rgba(10,30,60,0.14); }
+  .tick.midnight { background: rgba(255,255,255,0.7); width: 2px; }
+  .lbl {
+    position: absolute; bottom: 5px; transform: translateX(3px);
+    font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,0.8); pointer-events: none; white-space: nowrap;
+  }
+  .lbl.day { color: rgba(10,30,60,0.75); }
+  .lbl.date { top: 5px; bottom: auto; font-weight: 600; color: #fff; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .lbl.date.day { color: #0a1e3c; }
+
+  .nowline, .hoverline {
+    position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; pointer-events: none;
+  }
+  .nowline { left: 50%; background: var(--accent); z-index: 2; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+  .hoverline { background: var(--ink); opacity: 0.55; z-index: 1; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; align-items: center; }
+  .sw { display: inline-block; width: 28px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12); }
+
+  @media (max-width: 720px) {
+    .row { grid-template-columns: 1fr; gap: 6px; }
+    .lbl.minor, .tick.minor { display: none; }
+    .time { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>tzer</h1>
+      <p class="sub">24 hours around your current time, shaded by where the sun actually is. Hover or drag across the bars to compare a moment.</p>
+    </div>
+    <form id="addForm" autocomplete="off">
+      <input id="zoneInput" list="zoneList" placeholder="Add a zone, e.g. Asia/Kolkata" aria-label="Time zone">
+      <datalist id="zoneList"></datalist>
+      <button type="submit">Add</button>
+      <p class="err" id="err"></p>
+    </form>
+  </header>
+
+  <div class="stack" id="stack"></div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:#a8def8"></span>Sun up</span>
+    <span><span class="sw" style="background:linear-gradient(90deg,#26387a,#4b73b3,#76bbe5)"></span>Civil twilight</span>
+    <span><span class="sw" style="background:linear-gradient(90deg,#070b1f,#0f1838,#26387a)"></span>Nautical / astronomical twilight</span>
+    <span><span class="sw" style="background:#070b1f"></span>Night</span>
+    <span><span class="sw" style="background:#e8672c;width:3px"></span>Now</span>
+    <span><span class="sw" style="background:#fff;box-shadow:inset 0 0 0 1px #999;width:3px"></span>Local midnight</span>
+    <span>Sun position is calculated for each zone's reference city from the tz database (hover a city name for its coordinates).</span>
+  </div>
+</div>
+
+<script src="zones.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
