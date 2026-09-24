@@ -147,8 +147,6 @@
   zones = [myZone, ...zones.filter(z => z !== myZone)];
   const save = () => { try { localStorage.setItem(STORE, JSON.stringify(zones.slice(1))); } catch {} };
 
-  const all = Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : Object.keys(COORDS);
-  document.getElementById("zoneList").innerHTML = all.map(z => `<option value="${z}">`).join("");
 
   const stack = document.getElementById("stack");
   let hoverFrac = null;
@@ -249,19 +247,123 @@
     save(); render();
   });
 
-  document.getElementById("addForm").addEventListener("submit", e => {
-    e.preventDefault();
-    const input = document.getElementById("zoneInput"), err = document.getElementById("err");
-    const raw = input.value.trim();
-    const q = raw.toLowerCase().replace(/\s+/g, "_");
-    const z = all.find(x => x.toLowerCase() === q) || all.find(x => x.split("/").pop().toLowerCase() === q) || raw;
-    if (!raw || !validZone(z)) {
-      err.textContent = `"${raw}" isn't a known time zone. Try a city like Paris or an ID like Europe/Paris.`;
-      return;
-    }
+  // ---- Search ----
+  const COUNTRY = window.COUNTRY_NAMES || {};
+  const EXTRA_TERMS = {
+    GB: "uk united kingdom great britain england scotland wales northern ireland",
+    US: "usa america united states of america", AE: "uae emirates dubai", NZ: "aotearoa",
+    KR: "korea south korea", KP: "north korea", RU: "russia", CZ: "czechia czech republic",
+    NL: "holland", CH: "switzerland swiss", VN: "vietnam", TW: "taiwan", IR: "iran", SY: "syria",
+    LA: "laos", BO: "bolivia", TZ: "tanzania", VE: "venezuela", MD: "moldova", BN: "brunei",
+    CI: "ivory coast", CD: "congo drc", CG: "congo", FM: "micronesia", TR: "turkey turkiye",
+    "America/New_York": "nyc eastern", "America/Chicago": "central", "America/Denver": "mountain",
+    "America/Los_Angeles": "pacific la san francisco seattle", "America/Phoenix": "arizona",
+    "Asia/Kolkata": "india mumbai delhi bangalore bengaluru", "Asia/Shanghai": "china beijing",
+    "Asia/Dubai": "abu dhabi", "Europe/London": "gmt bst", "Australia/Sydney": "melbourne canberra"
+  };
+  const fold = x => x.normalize("NFD").replace(/\p{M}/gu, "").replace(/[’']/g, "").toLowerCase();
+  const input = document.getElementById("zoneInput");
+  const list = document.getElementById("results");
+  const err = document.getElementById("err");
+  let index = null, matches = [], active = -1;
+
+  function buildIndex() {
+    const y = new Date().getUTCFullYear(), jan = Date.UTC(y, 0, 15), jul = Date.UTC(y, 6, 15);
+    const ids = new Set([...Object.keys(COORDS), "UTC"]);
+    return [...ids].filter(validZone).map(zone => {
+      const cc = COORDS[zone]?.[2];
+      const country = cc ? COUNTRY[cc] || cc : "";
+      const city = cityName(zone);
+      const text = [city, zone.replace(/[/_]/g, " "), country, cc || "", EXTRA_TERMS[cc] || "",
+                    EXTRA_TERMS[zone] || "", abbr(zone, jan), abbr(zone, jul)].join(" ");
+      const tokens = [...new Set(fold(text).split(/[^\p{L}\p{N}+-]+/u).filter(Boolean))];
+      return { zone, city: fold(city), countryKey: fold(country), country, cityLabel: city, tokens };
+    });
+  }
+
+  function search(q) {
+    index ??= buildIndex();
+    const words = fold(q).split(/[^\p{L}\p{N}+-]+/u).filter(Boolean);
+    if (!words.length) return [];
+    const full = words.join(" ");
+    return index
+      .filter(e => words.every(w => e.tokens.some(t => t.startsWith(w))))
+      .map(e => {
+        const exact = words.every(w => e.tokens.includes(w));
+        const score = e.city === full ? 0
+          : e.countryKey === full ? 1
+          : e.city.startsWith(full) ? 2
+          : exact ? 3
+          : e.countryKey.startsWith(full) ? 4 : 5;
+        return { e, score };
+      })
+      .sort((a, b) => a.score - b.score || a.e.cityLabel.localeCompare(b.e.cityLabel))
+      .slice(0, 12)
+      .map(x => x.e);
+  }
+
+  const esc = x => x.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function showResults() {
+    matches = search(input.value);
+    active = matches.length ? 0 : -1;
     err.textContent = "";
+    if (!input.value.trim()) { closeResults(); return; }
+    const now = Date.now(), myOff = offsetMin(myZone, now);
+    list.innerHTML = matches.length ? matches.map((m, i) => {
+      const added = zones.includes(m.zone);
+      return `<li role="option" id="opt-${i}" data-i="${i}" class="${i === active ? "active" : ""}${added ? " added" : ""}" aria-selected="${i === active}">
+        <span class="r-main"><span class="r-city">${esc(m.cityLabel)}</span><span class="r-country">${esc(m.country || m.zone)}</span></span>
+        <span class="r-side"><span class="r-time">${hhmm(local(m.zone, now))}</span><span class="r-off">${added ? "added" : esc(relLabel(offsetMin(m.zone, now) - myOff))}</span></span>
+      </li>`;
+    }).join("") : `<li class="empty">No places match "${esc(input.value.trim())}". Try a city, country or zone like PST.</li>`;
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    input.setAttribute("aria-activedescendant", active >= 0 ? "opt-" + active : "");
+  }
+  function closeResults() {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  }
+  function setActive(i) {
+    if (!matches.length) return;
+    active = (i + matches.length) % matches.length;
+    list.querySelectorAll("li[data-i]").forEach(li => {
+      const on = +li.dataset.i === active;
+      li.classList.toggle("active", on);
+      li.setAttribute("aria-selected", on);
+      if (on) li.scrollIntoView({ block: "nearest" });
+    });
+    input.setAttribute("aria-activedescendant", "opt-" + active);
+  }
+  function addZone(z) {
     if (!zones.includes(z)) { zones.push(z); save(); render(); }
     input.value = "";
+    closeResults();
+    input.focus();
+  }
+
+  input.addEventListener("input", showResults);
+  input.addEventListener("focus", () => { if (input.value.trim()) showResults(); });
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); list.hidden ? showResults() : setActive(active + 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === "Escape") { closeResults(); }
+  });
+  list.addEventListener("pointerdown", e => e.preventDefault());
+  list.addEventListener("click", e => {
+    const li = e.target.closest("li[data-i]");
+    if (li) addZone(matches[+li.dataset.i].zone);
+  });
+  input.addEventListener("blur", closeResults);
+
+  document.getElementById("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const raw = input.value.trim();
+    if (!raw) return;
+    if (active >= 0 && matches[active]) return addZone(matches[active].zone);
+    if (validZone(raw)) return addZone(raw);
+    err.textContent = `No places match "${raw}". Try a city, country or zone like PST.`;
   });
 
   render();
