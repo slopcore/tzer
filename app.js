@@ -169,7 +169,7 @@
         const hr = d.getUTCHours(), cls = (s.bright ? " day" : "") + (hr % 3 ? " minor" : "");
         if (hr === 0) {
           ticks += `<div class="tick midnight" style="left:${pct(t)}"></div>` +
-                   `<span class="lbl date${s.bright ? " day" : ""}" style="left:${pct(t)}">${dayLabel(d)}</span>`;
+                   `<span class="lbl date${s.bright ? " day" : ""}${t > end - 3 * 3600e3 ? " flip" : ""}" style="left:${pct(t)}">${dayLabel(d)}</span>`;
         } else {
           ticks += `<div class="tick${cls}" style="left:${pct(t)}"></div>`;
         }
